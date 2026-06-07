@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buginese OCR - Perspective Crop & Digitizer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-expand-wide text-gradient"></i>
+                <span class="text-gradient">Buginese OCR</span>
+            </div>
+            <p class="subtitle">Document Warp & PaddleOCR Text Extractor</p>
+        </header>
+
+        <!-- Steps Indicator -->
+        <div class="steps-container">
+            <div class="step-item active" id="step-indicator-1">
+                <div class="step-num">1</div>
+                <div class="step-label">Upload</div>
+            </div>
+            <div class="step-line" id="step-line-1"></div>
+            <div class="step-item" id="step-indicator-2">
+                <div class="step-num">2</div>
+                <div class="step-label">Crop</div>
+            </div>
+            <div class="step-line" id="step-line-2"></div>
+            <div class="step-item" id="step-indicator-3">
+                <div class="step-num">3</div>
+                <div class="step-label">OCR</div>
+            </div>
+            <div class="step-line" id="step-line-3"></div>
+            <div class="step-item" id="step-indicator-4">
+                <div class="step-num">4</div>
+                <div class="step-label">Results</div>
+            </div>
+        </div>
+
+        <!-- Main Card Wrapper -->
+        <main class="main-card">
+            <!-- Step 1: Upload Image -->
+            <section id="step-upload" class="step-section active">
+                <div class="section-header">
+                    <h2>Upload Document Image</h2>
+                    <p>Upload your own file or pick a sample image below to try the OCR pipeline.</p>
+                </div>
+
+                <div class="upload-options">
+                    <div class="upload-dropzone" id="dropzone">
+                        <input type="file" id="file-input" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;">
+                        <div class="dropzone-content">
+                            <div class="icon-circle">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <h3>Drag & drop your image here</h3>
+                            <p>or click to browse files</p>
+                            <span class="file-limits">Max file size: 16MB</span>
+                        </div>
+                    </div>
+
+                    {% if test_images %}
+                    <div class="upload-divider">
+                        <span>or use a sample</span>
+                    </div>
+
+                    <div class="sample-images-panel">
+                        <div class="sample-images-header">
+                            <i class="fa-solid fa-images"></i>
+                            <h3>Test Images</h3>
+                        </div>
+                        <div class="sample-images-grid" id="sample-images-grid">
+                            {% for image in test_images %}
+                            <button type="button" class="sample-image-card" data-filename="{{ image.filename }}" data-url="{{ image.url }}" title="{{ image.filename }}">
+                                <img src="{{ image.url }}" alt="{{ image.filename }}" loading="lazy">
+                                <span class="sample-image-name">{{ image.filename }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <!-- Step 2: Perspective Crop -->
+            <section id="step-crop" class="step-section">
+                <div class="section-header">
+                    <h2>Adjust Perspective Crop</h2>
+                    <p>Drag the 4 corner handles to align with the edges of your document page.</p>
+                </div>
+                
+                <div class="crop-workspace-wrapper">
+                    <div id="crop-canvas-container" class="crop-canvas-container"></div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-secondary" id="btn-crop-back">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="btn-crop-submit">
+                        Crop & Continue <i class="fa-solid fa-crop"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 3: Run OCR -->
+            <section id="step-ocr" class="step-section">
+                <div class="section-header">
+                    <h2>Ready for OCR Analysis</h2>
+                    <p>Review your corrected perspective crop before launching text extraction.</p>
+                </div>
+
+                <div class="preview-container">
+                    <div class="preview-title">Corrected Document Preview</div>
+                    <div class="cropped-preview-box">
+                        <img id="cropped-preview-img" src="" alt="Cropped preview">
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-secondary" id="btn-ocr-back">
+                        <i class="fa-solid fa-arrow-left"></i> Adjust Crop
+                    </button>
+                    <button class="btn btn-primary" id="btn-ocr-submit">
+                        Run OCR Extraction <i class="fa-solid fa-brain"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 4: OCR Results -->
+            <section id="step-results" class="step-section">
+                <div class="section-header">
+                    <h2>OCR Extraction Results</h2>
+                    <p>Review the recognized text blocks, confidence scores, and download files.</p>
+                </div>
+
+                <div class="results-grid">
+                    <!-- Left: Result Image Visualizer -->
+                    <div class="results-col image-col">
+                        <div class="panel-header">
+                            <h3>Annotated Output Image</h3>
+                            <a id="btn-download-image" href="#" download class="btn-icon" title="Download annotated image">
+                                <i class="fa-solid fa-download"></i> Image
+                            </a>
+                        </div>
+                        <div class="annotated-image-box">
+                            <img id="annotated-result-img" src="" alt="Annotated OCR result">
+                        </div>
+                        <div class="download-row">
+                            <a id="btn-download-cropped" href="#" download class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-image"></i> Download Cropped Image
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Right: Text Results List -->
+                    <div class="results-col text-col">
+                        <div class="panel-header">
+                            <h3>Recognized Text Segments</h3>
+                            <a id="btn-download-text" href="#" download class="btn-icon" title="Download extracted text (.txt)">
+                                <i class="fa-solid fa-download"></i> Text
+                            </a>
+                        </div>
+                        <div class="text-list-wrapper" id="text-list-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-bar center">
+                    <button class="btn btn-primary" id="btn-restart">
+                        <i class="fa-solid fa-rotate-right"></i> Extract Another Document
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Crop loupe (fixed to viewport — must not live inside overflow:hidden parents) -->
+    <div id="magnifier" class="magnifier-popup" style="display: none;" aria-hidden="true">
+        <canvas id="magnifier-canvas"></canvas>
+        <span class="magnifier-label">Precision view</span>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+        <div class="loading-card">
+            <div class="spinner">
+                <div class="double-bounce1"></div>
+                <div class="double-bounce2"></div>
+            </div>
+            <h3 id="loading-title">Uploading image...</h3>
+            <p id="loading-desc">Please wait, this may take a moment.</p>
+        </div>
+    </div>
+
+    <!-- Konva.js (bundled locally — CDN version was 404) -->
+    <script src="{{ url_for('static', filename='js/vendor/konva.min.js') }}"></script>
+    <!-- Custom Application Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
